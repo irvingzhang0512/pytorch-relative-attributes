@@ -5,19 +5,18 @@
 ## 1. Features
 + Datasets
   + [x] Zappos50k-1
-  + [ ] Zappos50k-2
+  + [x] Zappos50k-2
   + [ ] Pubfig
   + [ ] LFW10
-  + [ ] Builder
 + Models
+  + [x] DRN
   + [ ] DRA
-  + [ ] Builder
 + Scripts
-  + [ ] Training
+  + [x] Training
   + [ ] Evaluating
   + [ ] Predicting
 + Examples
-  + [ ] Show datasets.
+  + [x] Show datasets.
   + [ ] Show Models.
 
 

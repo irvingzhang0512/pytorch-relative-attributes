@@ -1,5 +1,4 @@
-import torch
-import torchvision
+from torchvision import transforms
 from torchvision.transforms import functional as F
 
 
@@ -9,11 +8,12 @@ def get_default_transforms_config(training=True):
         "is_rgb": True,
 
         # ColorJitter
-        "brightness": .0,
-        "contrast": .0,
-        "saturation": .0,
-        "hue": .0,
-        
+        "color_jitter": training,
+        "brightness": .1,
+        "contrast": .1,
+        "saturation": .1,
+        "hue": .1,
+
         # RandomHorizontalFlip
         "random_horizontal_flip": training,
 
@@ -21,9 +21,15 @@ def get_default_transforms_config(training=True):
         "random_resized_crop_size": (224, 224) if training else None,
         "random_resized_crop_scale": (0.75, 1.),
         "random_resized_crop_ratio": (3.0 / 4, 4.0 / 3),
-        
+
         # Resize
-        "resize_size": None if training else (256, 256),
+        "resize_size": None if training else(256, 256),
+
+        # Nomalize
+        "normalize": transforms.Normalize(
+            mean=[0.485, 0.456, 0.406],
+            std=[0.229, 0.224, 0.225]
+        ),
     }
 
 
