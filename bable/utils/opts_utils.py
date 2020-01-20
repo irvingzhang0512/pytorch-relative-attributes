@@ -41,7 +41,18 @@ def parse_args(args=None):
     parser.add_argument('--optimizer_type', type=str, default="RMSprop")
 
     # logs
-    parser.add_argument('--log_interval_steps', type=int, default=20)
+    parser.add_argument('--log-interval-steps', type=int, default=20)
+    parser.add_argument('--summary-interval-steps', type=int, default=20)
+    parser.add_argument('--logs-root-dir', type=str, default="./logs")
+    parser.add_argument('--logs-name', type=str, default="default")
+    parser.add_argument('--clean_dir', action="store_true")
+    parser.add_argument('--eval-dir-name', type=str, default="eval")
+    parser.add_argument('--step-ckpt-name',
+                        type=str, default="step.pth")
+    parser.add_argument('--min-loss-ckpt-name',
+                        type=str, default="min_loss_{:.4f}.pth")
+    parser.add_argument('--max-accuracy-ckpt-name',
+                        type=str, default="max_accuracy_{:.4f}.pth")
 
     # gpu
     parser.add_argument('--gpus', type=int, default=0)

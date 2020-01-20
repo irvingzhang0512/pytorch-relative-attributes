@@ -1,10 +1,17 @@
-import os
 import torch
-from tqdm import tqdm
-from bable.utils.transforms_utils import get_default_transforms_config
-from bable.builders import datasets_builder, models_builder, loss_builder
-from bable.utils.opts_utils import parse_args
+import os
+import platform
+import shutil
+import math
+if 'Windows' in platform.platform():
+    import sys
+    sys.path.append("E:\\vscprojects\\pytorch-relative-attributes")
+from tensorboardX import SummaryWriter
 from bable.utils.metrics_utils import ScoresAccuracyTool
+from bable.utils.opts_utils import parse_args
+from bable.builders import datasets_builder, models_builder, loss_builder
+from bable.utils.transforms_utils import get_default_transforms_config
+
 
 
 def _get_datasets(args):
@@ -61,10 +68,11 @@ def _get_datasets(args):
 def train_one_epoch(model,
                     train_loader, device,
                     optimizer, loss_fn,
-                    epoch,
-                    log_interval_steps):
+                    epoch, writer, args):
     model.train()
     accuracy_tool = ScoresAccuracyTool()
+    base_global_step = (epoch - 1) * \
+        math.ceil(len(train_loader.dataset)/args.batch_size)
     for idx, d in enumerate(train_loader):
         img1 = d[0][0].to(device)
         img2 = d[0][1].to(device)
@@ -80,14 +88,26 @@ def train_one_epoch(model,
         loss.backward()
         optimizer.step()
 
-        if idx % log_interval_steps == 0:
+        if idx % args.log_interval_steps == 0:
             print('Train Epoch: {} {}/{} {:.4f} {:.2f}'.format(
                 epoch, idx*len(labels), len(train_loader.dataset),
                 loss, accuracy_tool.accuracy()
             ))
+        if idx % args.summary_interval_steps == 0:
+            writer.add_scalars(
+                'metrics/accuracy',
+                {'train': accuracy_tool.accuracy()},
+                base_global_step + idx
+            )
+            writer.add_scalars(
+                'metrics/loss',
+                {'train': loss},
+                base_global_step + idx
+            )
+            writer.flush()
 
 
-def eval(model, val_loader, device, loss_fn, epoch, args):
+def eval(model, val_loader, device, loss_fn, epoch, writer, global_step):
     model.eval()
 
     total_loss = .0
@@ -95,7 +115,7 @@ def eval(model, val_loader, device, loss_fn, epoch, args):
     batch_idx = 0
 
     with torch.no_grad():
-        for d in tqdm(val_loader):
+        for d in val_loader:
             batch_idx += 1
             img1 = d[0][0].to(device)
             img2 = d[0][1].to(device)
@@ -109,12 +129,18 @@ def eval(model, val_loader, device, loss_fn, epoch, args):
             )
 
     total_loss = total_loss / batch_idx
+    accuracy = accuracy_tool.accuracy()
     print('Val Epoch: {}, average loss {:.4f}, accuracy {:.4f}'.format(
-        epoch, total_loss, accuracy_tool.accuracy()
+        epoch, total_loss, accuracy
     ))
+    writer.add_scalars('metrics/accuracy', {'eval': accuracy}, global_step)
+    writer.add_scalars('metrics/loss', {'eval': total_loss}, global_step)
+    writer.flush()
+    return total_loss, accuracy
 
 
 def _get_optimizer(model, args):
+    # TODO: lr decay
     def _get_lr():
         return args.lr
 
@@ -145,7 +171,31 @@ def _get_optimizer(model, args):
     raise ValueError('unknown optimizer type %s' % args.optimizer_type)
 
 
-def train(model, train_loader, val_loader, args):
+def _get_model_dir_name(args, category_name):
+    return "logs-{}_{}_{}-{}_{}-loss_{}-{}_{}_{}-wd{}-{}".format(
+        args.dataset_type, category_name, args.batch_size,
+        args.model_type, args.extractor_type,
+        args.loss_type,
+        args.optimizer_type, args.lr, args.extractor_lr,
+        args.weight_decay,
+        args.logs_name,
+    )
+
+
+def train(model, train_loader, val_loader, model_dir, args):
+    # remove/create dirs
+    eval_dir = os.path.join(model_dir, args.eval_dir_name)
+    if args.clean_dir and os.path.exists(model_dir):
+        shutil.rmtree(model_dir)
+    if not os.path.exists(model_dir):
+        os.makedirs(eval_dir)
+
+    # summary writer
+    writer = SummaryWriter(model_dir)
+    writer.add_graph(model, (torch.rand(16, 3, 224, 224),
+                             torch.rand(16, 3, 224, 224)))
+    writer.flush()
+
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     model.to(device)
     loss_fn = loss_builder.build_loss(args.loss_type)
@@ -153,18 +203,52 @@ def train(model, train_loader, val_loader, args):
     for p in model.parameters():
         print(p.size())
 
+    min_loss = 1e10
+    max_accuracy = .0
     for i in range(args.epochs):
         train_one_epoch(
             model, train_loader, device,
             optimizer, loss_fn,
-            i + 1, args.log_interval_steps
+            i + 1, writer, args,
         )
-        eval(model, val_loader, device, loss_fn, i + 1, args)
+        global_step = (i+1) * \
+            math.ceil(len(train_loader.dataset)/args.batch_size)
+        cur_loss, cur_accuracy = eval(
+            model, val_loader, device, loss_fn, i + 1, writer, global_step
+        )
 
-        # TODO: save model
-        # save max accuracy/min loss model
+        if min_loss > cur_loss:
+            file_names = os.listdir(eval_dir)
+            prefix = args.min_loss_ckpt_name[:6]
+            for file_name in file_names:
+                if prefix in file_name:
+                    os.remove(os.path.join(eval_dir, file_name))
+                    break
+            min_loss = cur_loss
+            torch.save(model, os.path.join(
+                eval_dir,
+                args.min_loss_ckpt_name.format(min_loss)
+            ))
+
+        if max_accuracy < cur_accuracy:
+            file_names = os.listdir(eval_dir)
+            prefix = args.max_accuracy_ckpt_name[:6]
+            for file_name in file_names:
+                if prefix in file_name:
+                    os.remove(os.path.join(eval_dir, file_name))
+                    break
+            max_accuracy = cur_accuracy
+            torch.save(model, os.path.join(
+                eval_dir,
+                args.max_accuracy_ckpt_name.format(max_accuracy)
+            ))
+
         # save one step model
-        # torch.save(model, "siamese{}.pt".format(i))
+        torch.save(
+            model.state_dict(),
+            os.path.join(model_dir, args.step_ckpt_name)
+        )
+    writer.close()
 
 
 def main(args):
@@ -175,7 +259,11 @@ def main(args):
         args.model_type,
         extractor_type=args.extractor_type,
     )
-    train(model, train_loader, val_loader, args)
+    model_dir = os.path.join(
+        args.logs_root_dir,
+        _get_model_dir_name(args, train_loader.dataset.category_name)
+    )
+    train(model, train_loader, val_loader, model_dir, args)
 
 
 if __name__ == '__main__':
