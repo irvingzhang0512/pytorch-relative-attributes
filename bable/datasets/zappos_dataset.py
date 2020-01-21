@@ -109,7 +109,7 @@ class ZapposV1(BaseSiameseDataset):
 
         # pairs and ndarray
         pairs_file = sio.loadmat(opj(annotation_dir, self._pairs_file_name))
-        if self._split == 'train':
+        if split == 'train':
             ndarray = pairs_file['trainPairsAll'].flatten()[
                 self._category_id].flatten()[0]
         else:

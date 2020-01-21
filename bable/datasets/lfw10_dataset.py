@@ -62,7 +62,7 @@ class LFW10Dataset(BaseSiameseDataset):
 
         anno_file_path = os.path.join(
             self._dataset_dir, self._annoatation_dir_name,
-            "{}{}.mat".format(self.category_name, self._split)
+            "{}{}.mat".format(self.category_name, split)
         )
         mat_dataset = sio.loadmat(anno_file_path)
         img_names = mat_dataset['images_compare']
