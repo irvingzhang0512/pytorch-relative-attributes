@@ -1,3 +1,5 @@
+import math
+from PIL import Image
 from torchvision import transforms
 from torchvision.transforms import functional as F
 
@@ -31,6 +33,33 @@ def get_default_transforms_config(training=True):
             std=[0.229, 0.224, 0.225]
         ),
     }
+
+
+class MinSizeResize(object):
+    def __init__(self,
+                 min_height, min_width,
+                 interpolation=Image.BILINEAR):
+        self.min_height = min_height
+        self.min_width = min_width
+        self.interpolation = interpolation
+
+    def __call__(self, img):
+        """
+        Args:
+            img (PIL Image): Image to be scaled.
+
+        Returns:
+            PIL Image: Rescaled image.
+        """
+        cur_width, cur_height = img.size
+        s_height = 1.0 * cur_height / self.min_height
+        s_width = 1.0 * cur_width / self.min_width
+        s = min(s_height, s_width)
+        if s >= 1.0:
+            return img
+        else:
+            size = math.ceil(cur_height/s), math.ceil(cur_width/s)
+            return F.resize(img, size, self.interpolation)
 
 
 class ToTensor(object):

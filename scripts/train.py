@@ -13,7 +13,6 @@ from bable.builders import datasets_builder, models_builder, loss_builder
 from bable.utils.transforms_utils import get_default_transforms_config
 
 
-
 def _get_datasets(args):
     train_dataset_config = get_default_transforms_config()
     train_dataset_config['is_rgb'] = not args.is_bgr
@@ -185,7 +184,7 @@ def _get_model_dir_name(args, category_name):
 def train(model, train_loader, val_loader, model_dir, args):
     # remove/create dirs
     eval_dir = os.path.join(model_dir, args.eval_dir_name)
-    if args.clean_dir and os.path.exists(model_dir):
+    if args.clean_model_dir and os.path.exists(model_dir):
         shutil.rmtree(model_dir)
     if not os.path.exists(model_dir):
         os.makedirs(eval_dir)
@@ -200,23 +199,28 @@ def train(model, train_loader, val_loader, model_dir, args):
     model.to(device)
     loss_fn = loss_builder.build_loss(args.loss_type)
     optimizer = _get_optimizer(model, args)
-    for p in model.parameters():
-        print(p.size())
+    # for p in model.parameters():
+    #     print(p.size())
 
     min_loss = 1e10
     max_accuracy = .0
+    early_stopping_cnt = 0
     for i in range(args.epochs):
+        # train
         train_one_epoch(
             model, train_loader, device,
             optimizer, loss_fn,
             i + 1, writer, args,
         )
+
+        # eval
         global_step = (i+1) * \
             math.ceil(len(train_loader.dataset)/args.batch_size)
         cur_loss, cur_accuracy = eval(
             model, val_loader, device, loss_fn, i + 1, writer, global_step
         )
 
+        # save model
         if min_loss > cur_loss:
             file_names = os.listdir(eval_dir)
             prefix = args.min_loss_ckpt_name[:6]
@@ -242,12 +246,22 @@ def train(model, train_loader, val_loader, model_dir, args):
                 eval_dir,
                 args.max_accuracy_ckpt_name.format(max_accuracy)
             ))
+            early_stopping_cnt = 0
+        else:
+            early_stopping_cnt += 1
+            if early_stopping_cnt >= args.early_stopping_epochs:
+                print('early stopping')
+                break
 
         # save one step model
         torch.save(
             model.state_dict(),
             os.path.join(model_dir, args.step_ckpt_name)
         )
+    print('dataset {}/{} finally get loss {:.4f} and accuracy {:.4f}'.format(
+        train_loader.dataset.category_name, args.dataset_type,
+        min_loss, max_accuracy
+    ))
     writer.close()
 
 

@@ -1,12 +1,39 @@
 import torch
 import torchvision
 from PIL import Image
-from bable.utils.transforms_utils import ToTensor
+from bable.utils.transforms_utils import ToTensor, MinSizeResize
 
 
-class BaseDataset(torch.utils.data.Dataset):
+class BasePredictDataset(torch.utils.data.Dataset):
+    def __init__(self, min_height=224, min_width=224, is_bgr=False):
+        super(BasePredictDataset, self).__init__()
+        self._is_bgr = is_bgr
+        self._min_height = min_height
+        self._min_width = min_width
+        self._image_full_paths = self._get_image_full_paths()
+        self._transforms = self._get_transforms()
+
+    def _get_image_full_paths(self):
+        raise NotImplementedError
+
+    def _get_transforms(self):
+        return torchvision.transforms.Compose([
+            MinSizeResize(self._min_height, self._min_width),
+            ToTensor(is_rgb=not self._is_bgr),
+        ])
+
+    def __getitem__(self, index):
+        img = Image.open(self._image_full_paths[index])
+        img = self._transforms(img)
+        return self._image_full_paths[index], img
+
+    def __len__(self):
+        return len(self._image_full_paths)
+
+
+class BaseSiameseDataset(torch.utils.data.Dataset):
     def __init__(self, split, category_id, transforms_config):
-        super(BaseDataset, self).__init__()
+        super(BaseSiameseDataset, self).__init__()
         assert split in self._get_splits(), 'unknown split %s' % split
         assert category_id in range(len(self._get_categories())), \
             'invalid category_id %d ' % category_id

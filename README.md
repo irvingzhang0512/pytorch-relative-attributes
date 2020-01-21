@@ -3,9 +3,10 @@
 + [Relative Attributes](#relative-attributes)
   + [0. Overview](#0-overview)
   + [1. Features](#1-features)
-  + [2. Results](#2-results)
-    + [2.1. Zappos V1](#21-zappos-v1)
-    + [2.2. Zappos V2](#22-zappos-v2)
+  + [2. Quick Start](#2-quick-start)
+  + [3. Results](#3-results)
+    + [3.1. Zappos V1](#31-zappos-v1)
+    + [3.2. Zappos V2](#32-zappos-v2)
   + [Reference](#reference)
 
 ## 0. Overview
@@ -14,33 +15,48 @@
 + Datasets
   + [x] Zappos50k-1
   + [x] Zappos50k-2
+  + [x] LFW10
   + [ ] Pubfig
-  + [ ] LFW10
+  + [ ] Place Pulse
+  + [ ] Dowloading Scripts.
 + Models
   + [x] DRN
   + [ ] DRA
 + Scripts
   + [x] Training
-  + [ ] Evaluating
-  + [ ] Predicting
+  + [ ] generate scoring result files.
 + Examples
-  + [x] Show datasets.
-  + [ ] Show Models.
+  + [x] Datasets notebooks
+  + [x] Predicting & Visualization notebooks
+    + Cal scores, showing scores hist.
+    + Showing images & heatmaps for different graded images.
++ Docs
+  + [ ] Quick Start.
+  + [ ] Datasets introduction.
+  + [ ] Models introduction.
++ Others
+  + [ ] GradCam for all models.
+  + [ ] More CNN Visualization methods.
+
+## 2. Quick Start
+
+## 3. Results
+
+### 3.1. Zappos V1
+|        Model        | Open  | Pointy | Sporty | Comfort | Mean  |             comments              |
+| :-----------------: | :---: | :----: | :----: | :-----: | :---: | :-------------------------------: |
+|  DRN-VGG16(paper)   | 95.37 | 94.43  | 97.30  |  95.57  | 95.67 |                 /                 |
+|   DRN-VGG16(ours)   | 96.33 | 94.33  | 96.33  |  94.00  |   /   | ranknet + lr(1e-4, 1e-5) + wd1e-5 |
+|   DRN-VGG16(ours)   | 96.33 | 94.33  | 96.33  |  95.00  |   /   |   dra + lr(1e-4, 1e-5) + wd1e-5   |
+| DRN-googlenet(ours) | 92.00 | 94.33  | 94.33  |  95.33  |   /   | ranknet + lr(1e-4, 1e-5) + wd1e-5 |
 
 
-## 2. Results
+### 3.2. Zappos V2
+|      Model       | Open  | Pointy | Sporty | Comfort | Mean  |                comments                 |
+| :--------------: | :---: | :----: | :----: | :-----: | :---: | :-------------------------------------: |
+| DRN-VGG16(paper) | 73.45 | 68.20  | 73.07  |  70.31  | 71.26 |                  VGG16                  |
+| DRN-VGG16(ours)  | 72.73 | 67.83  | 74.24  |  67.93  |   /   | drn + ranknet + lr(1e-4, 1e-5) + wd1e-5 |
+| DRN-VGG16(ours)  | 74.55 | 66.81  | 72.11  |  69.46  |   /   | drn + ranknet + lr(1e-4, 1e-5) + wd5e-5 |
 
-### 2.1. Zappos V1
-|     Model      | Open  | Pointy | Sporty | Comfort | Mean  |                    comments                     |
-| :------------: | :---: | :----: | :----: | :-----: | :---: | :---------------------------------------------: |
-|   DRN(paper)   | 95.37 | 94.43  | 97.30  |  95.57  | 95.67 |                      VGG16                      |
-| DRN(this repo) | 96.33 |   /    |   /    |    /    |   /   | VGG16 + drn + ranknet + lr(1e-4, 1e-5) + wd1e-5 |
-
-
-### 2.2. Zappos V2
-|   Model    | Open  | Pointy | Sporty | Comfort | Mean  | comments |
-| :--------: | :---: | :----: | :----: | :-----: | :---: | :------: |
-| DRN(paper) | 73.45 | 68.20  | 73.07  |  70.31  | 71.26 |  VGG16   |
-| DRN(paper) | 72.09 |   /    |   /    |    /    |   /   |  VGG16   |
 
 ## Reference

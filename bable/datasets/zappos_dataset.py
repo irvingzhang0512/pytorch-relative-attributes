@@ -2,7 +2,7 @@ import platform
 import os
 import numpy as np
 import scipy.io as sio
-from bable.datasets.base_dataset import BaseDataset
+from bable.datasets.base_dataset import BaseSiameseDataset, BasePredictDataset
 from bable.utils.transforms_utils import get_default_transforms_config
 
 if 'Windows' in platform.platform():
@@ -10,11 +10,13 @@ if 'Windows' in platform.platform():
 else:
     BASE_DATASET = "/hdd02/zhangyiyang/data/zap50k"
 
-def _get_image_names(image_names_raw, image_dir):
-    # # processed image dir
-    # image_names = [os.path.join(image_dir, n[0]) for n in image_names_raw]
+SPLITS = ('train', 'test')
+CATEGORIES = ('open', 'pointy', 'sporty', 'comfort')
 
+
+def _get_image_names(image_names_raw, image_dir):
     # 下载下来的数据集路径存在问题，需要修正……
+    # 改写 DRN 中的代码
     # you see this crazy for loop? yes I hate it too.
     image_names = []
     for p in image_names_raw:
@@ -51,8 +53,7 @@ def _get_image_names(image_names_raw, image_dir):
     return image_names
 
 
-
-class ZapposV1(BaseDataset):
+class ZapposV1(BaseSiameseDataset):
     def __init__(self,
                  split,
                  category_id,
@@ -78,10 +79,10 @@ class ZapposV1(BaseDataset):
         super(ZapposV1, self).__init__(split, category_id, trans_config)
 
     def _get_splits(self):
-        return ('train', 'test')
+        return SPLITS
 
     def _get_categories(self):
-        return ('open', 'pointy', 'sporty', 'comfort')
+        return CATEGORIES
 
     def _get_list_and_labels(self, split):
 
@@ -120,8 +121,8 @@ class ZapposV1(BaseDataset):
             ndarray = ndarray[ids]
 
         # list
-        pair_list = [(image_names[ndarray[idx, 0] - 1], # 注意，要-1
-                      image_names[ndarray[idx, 1] - 1]) # 注意，要-1
+        pair_list = [(image_names[ndarray[idx, 0] - 1],  # 注意，要-1
+                      image_names[ndarray[idx, 1] - 1])  # 注意，要-1
                      for idx in range(ndarray.shape[0])]
 
         # labels
@@ -131,7 +132,7 @@ class ZapposV1(BaseDataset):
         return pair_list, labels
 
 
-class ZapposV2(BaseDataset):
+class ZapposV2(BaseSiameseDataset):
     def __init__(self,
                  split,
                  category_id,
@@ -159,10 +160,10 @@ class ZapposV2(BaseDataset):
         super(ZapposV2, self).__init__(split, category_id, trans_config)
 
     def _get_splits(self):
-        return ('train', 'test')
+        return SPLITS
 
     def _get_categories(self):
-        return ('open', 'pointy', 'sporty', 'comfort')
+        return CATEGORIES
 
     def _get_list_and_labels(self, split):
         def _convert_winnter(old):
@@ -203,8 +204,8 @@ class ZapposV2(BaseDataset):
 
         # list
         ndarray = ndarray.astype(np.int32)
-        pair_list = [(image_names[ndarray[idx, 0] - 1], # 注意，要-1
-                      image_names[ndarray[idx, 1] - 1]) # 注意，要-1
+        pair_list = [(image_names[ndarray[idx, 0] - 1],  # 注意，要-1
+                      image_names[ndarray[idx, 1] - 1])  # 注意，要-1
                      for idx in range(ndarray.shape[0])]
 
         # labels
@@ -212,3 +213,35 @@ class ZapposV2(BaseDataset):
         labels = [_convert_winnter(l) for l in labels]
 
         return pair_list, labels
+
+
+class ZapposPredictDataset(BasePredictDataset):
+    def __init__(self,
+                 min_height=224,
+                 min_width=224,
+                 is_bgr=False,
+                 dataset_dir=BASE_DATASET,
+                 image_dir_name="ut-zap50k-images",
+                 annoatation_dir_name="ut-zap50k-data",
+                 image_names_file_name="image-path.mat",
+                 ):
+        self._dataset_dir = dataset_dir
+        self._image_dir_name = image_dir_name
+        self._annoatation_dir_name = annoatation_dir_name
+        self._image_names_file_name = image_names_file_name
+        super(ZapposPredictDataset, self).__init__(
+            min_height, min_width, is_bgr
+        )
+
+    def _get_image_full_paths(self):
+        image_names_raw = sio.loadmat(os.path.join(
+            self._dataset_dir,
+            self._annoatation_dir_name,
+            self._image_names_file_name
+        ))['imagepath'].flatten()
+        image_list = _get_image_names(
+            image_names_raw,
+            os.path.join(self._dataset_dir, self._image_dir_name)
+        )
+        image_list = [i for i in image_list if os.path.exists(i)]
+        return image_list
