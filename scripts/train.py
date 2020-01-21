@@ -47,7 +47,7 @@ def _get_datasets(args):
     val_dataset_config['resize_size'] = (
         args.val_reisze_height, args.val_reisze_width
     )
-    val_split = 'test' if 'zappos' in args.dataset_type else 'val'
+    val_split = 'val' if 'place_pulse' in args.dataset_type else 'test'
     val_dataset = datasets_builder.build_dataset(
         dataset_type=args.dataset_type,
         split=val_split,
@@ -61,6 +61,7 @@ def _get_datasets(args):
         num_workers=args.num_workers,
     )
 
+    print('dataset init successfully...')
     return train_loader, val_loader
 
 
@@ -88,7 +89,7 @@ def train_one_epoch(model,
         optimizer.step()
 
         if idx % args.log_interval_steps == 0:
-            print('Train Epoch: {} {}/{} {:.4f} {:.2f}'.format(
+            print('Train Epoch: {} {}/{} {:.4f} {:.4f}'.format(
                 epoch, idx*len(labels), len(train_loader.dataset),
                 loss, accuracy_tool.accuracy()
             ))

@@ -16,9 +16,10 @@
   + [x] Zappos50k-1
   + [x] Zappos50k-2
   + [x] LFW10
-  + [ ] Pubfig
-  + [ ] Place Pulse
-  + [ ] Dowloading Scripts.
+  + [x] Pubfig
+  + [x] Place Pulse
+  + [x] OSR
+  + [ ] Dowloading Scripts
 + Models
   + [x] DRN
   + [ ] DRA

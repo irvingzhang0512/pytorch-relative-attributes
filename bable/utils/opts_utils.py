@@ -57,6 +57,6 @@ def parse_args(args=None):
 
     # gpu
     parser.add_argument('--gpus', type=int, default=0)
-    parser.add_argument('--gpu-devices', type=str, default="3")
+    parser.add_argument('--gpu-devices', type=str, default="0")
 
     return parser.parse_args(args)
