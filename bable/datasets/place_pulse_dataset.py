@@ -7,7 +7,7 @@ from bable.utils.transforms_utils import get_default_transforms_config
 
 
 if 'Windows' in platform.platform():
-    BASE_DATASET = "F:\\data\\PlacePulse"
+    BASE_DATASET = "E:\\data\\PlacePulse"
 else:
     BASE_DATASET = "/hdd02/zhangyiyang/data/PlacePulse"
 
@@ -85,7 +85,7 @@ class PlacePulsePredictDataset(BasePredictDataset):
                  is_bgr=False,
                  dataset_dir=BASE_DATASET,
                  image_dir_name='images',
-                 broken_file_name='borken_img_list_place_pulse.txt',
+                 broken_file_name='broken_image_list.txt',
                  ):
         self._dataset_dir = dataset_dir
         self._image_dir_name = image_dir_name
@@ -101,7 +101,7 @@ class PlacePulsePredictDataset(BasePredictDataset):
         if self._broken_file_name is not None:
             with open(os.path.join(self._dataset_dir, self._broken_file_name), 'r') as f:
                 broken_files = f.readlines()
-            broken_files = [name[:name.find('.')] for name in broken_files]
+            broken_files = [name.replace('\n', '') for name in broken_files]
         image_list = [os.path.join(image_dir, fname)
                       for fname in file_names if fname not in broken_files]
         return image_list

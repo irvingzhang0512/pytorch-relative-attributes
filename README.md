@@ -19,10 +19,19 @@
   + [x] Pubfig
   + [x] Place Pulse
   + [x] OSR
+  + [ ] Prefetch Dataset
+  + [ ] Opencv data argument
+  + [ ] Nvidia DALI
   + [ ] Dowloading Scripts
 + Models
   + [x] DRN
   + [ ] DRA
++ Training
+  + [x] Logging with `print`
+  + [x] Summary with TensorBoard
+  + [x] Early Stopping
+  + [x] LR decay
+  + [ ] Logging with `logging`
 + Scripts
   + [x] Training
   + [ ] generate scoring result files.

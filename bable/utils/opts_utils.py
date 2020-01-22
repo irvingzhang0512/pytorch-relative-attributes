@@ -34,12 +34,22 @@ def parse_args(args=None):
 
     # training
     parser.add_argument('--epochs', type=int, default=25)
-    parser.add_argument('--lr', type=float, default=1e-4)
-    parser.add_argument('--extractor-lr', type=float, default=1e-5)
     parser.add_argument('--loss-type', type=str, default="ranknet")
     parser.add_argument('--weight-decay', type=float, default=1e-5)
     parser.add_argument('--optimizer-type', type=str, default="RMSprop")
+
+    # early stopping
+    parser.add_argument('--early-stopping-mode', type=str, default="min_loss",
+                        help="[min_loss, max_accuracy, none]")
     parser.add_argument('--early-stopping-epochs', type=int, default=5)
+
+    # lr
+    parser.add_argument('--lr', type=float, default=1e-4)
+    parser.add_argument('--lr-decay', type=str, default='none',
+                        help='[step, exponential, multistep, minloss]')
+    parser.add_argument('--lr-gamma', type=float, default=0.2)
+    parser.add_argument('--extractor-lr', type=float, default=1e-5)
+    parser.add_argument('--lr-milestones', nargs='+', type=int)
 
     # logs
     parser.add_argument('--log-interval-steps', type=int, default=20)

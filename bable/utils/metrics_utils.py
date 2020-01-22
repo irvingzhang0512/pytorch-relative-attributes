@@ -19,3 +19,20 @@ class ScoresAccuracyTool:
     def reset(self):
         self._positive = 0
         self._total = 0
+
+
+class MeanTool:
+    def __init__(self):
+        self._value = 0.
+        self._cnt = 0.
+
+    def update(self, value, cnt=1.):
+        self._value += value
+        self._cnt += cnt
+
+    def mean(self):
+        return .0 if self._cnt == 0. else self._value / self._cnt
+
+    def reset(self):
+        self._value = 0.
+        self._cnt = 0.

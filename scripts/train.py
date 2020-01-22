@@ -6,8 +6,11 @@ import math
 if 'Windows' in platform.platform():
     import sys
     sys.path.append("E:\\vscprojects\\pytorch-relative-attributes")
+from tqdm import tqdm
 from tensorboardX import SummaryWriter
-from bable.utils.metrics_utils import ScoresAccuracyTool
+from bable.utils.training_utils import get_optimizer_and_lr_schedule
+from bable.utils.dataloader_utils import PrefetchDataLoader, DataPrefetcher
+from bable.utils.metrics_utils import ScoresAccuracyTool, MeanTool
 from bable.utils.opts_utils import parse_args
 from bable.builders import datasets_builder, models_builder, loss_builder
 from bable.utils.transforms_utils import get_default_transforms_config
@@ -61,7 +64,8 @@ def _get_datasets(args):
         num_workers=args.num_workers,
     )
 
-    print('dataset init successfully...')
+    train_loader = DataPrefetcher(train_loader)
+    val_loader = DataPrefetcher(val_loader)
     return train_loader, val_loader
 
 
@@ -70,29 +74,47 @@ def train_one_epoch(model,
                     optimizer, loss_fn,
                     epoch, writer, args):
     model.train()
+    max_iters = math.ceil(len(train_loader.dataset) / args.batch_size)
     accuracy_tool = ScoresAccuracyTool()
-    base_global_step = (epoch - 1) * \
-        math.ceil(len(train_loader.dataset)/args.batch_size)
-    for idx, d in enumerate(train_loader):
-        img1 = d[0][0].to(device)
-        img2 = d[0][1].to(device)
-        labels = d[1].to(device)
+    loss_tool = MeanTool()
+    base_global_step = (epoch - 1) * max_iters
+
+    pbar = tqdm(
+        range(max_iters),
+        ncols=50,
+    )
+    for idx in pbar:
+        # get data
+        d = next(train_loader)
+        img1 = d[0][0]
+        img2 = d[0][1]
+        labels = d[1]
+
+        # training
         optimizer.zero_grad()
         s1_logits, s2_logits = model(img1, img2)
+        loss = loss_fn(s1_logits, s2_logits, labels)
+        loss.backward()
+        optimizer.step()
+
+        # update metrics
         accuracy_tool.update(
             s1_logits.cpu().detach().numpy(),
             s2_logits.cpu().detach().numpy(),
             labels.cpu().numpy()
         )
-        loss = loss_fn(s1_logits, s2_logits, labels)
-        loss.backward()
-        optimizer.step()
+        loss_tool.update(loss.cpu().detach().numpy())
 
+        # logging & summary
         if idx % args.log_interval_steps == 0:
             print('Train Epoch: {} {}/{} {:.4f} {:.4f}'.format(
-                epoch, idx*len(labels), len(train_loader.dataset),
+                epoch, idx, max_iters,
                 loss, accuracy_tool.accuracy()
             ))
+            pbar.set_postfix({
+                "loss": loss_tool.mean(),
+                "accuracy": accuracy_tool.accuracy(),
+            })
         if idx % args.summary_interval_steps == 0:
             writer.add_scalars(
                 'metrics/accuracy',
@@ -106,16 +128,22 @@ def train_one_epoch(model,
             )
             writer.flush()
 
+        # update index
+        idx += 1
 
-def eval(model, val_loader, device, loss_fn, epoch, writer, global_step):
+
+def eval_once(model, val_loader, device, loss_fn, epoch,
+              writer, global_step, batch_size):
     model.eval()
 
     total_loss = .0
     accuracy_tool = ScoresAccuracyTool()
     batch_idx = 0
-
+    max_iters = math.ceil(len(val_loader.dataset)/batch_size)
+    pbar = tqdm(range(max_iters))
     with torch.no_grad():
-        for d in val_loader:
+        for _ in pbar:
+            d = next(val_loader)
             batch_idx += 1
             img1 = d[0][0].to(device)
             img2 = d[0][1].to(device)
@@ -130,6 +158,8 @@ def eval(model, val_loader, device, loss_fn, epoch, writer, global_step):
 
     total_loss = total_loss / batch_idx
     accuracy = accuracy_tool.accuracy()
+
+    # logging & summary
     print('Val Epoch: {}, average loss {:.4f}, accuracy {:.4f}'.format(
         epoch, total_loss, accuracy
     ))
@@ -137,38 +167,6 @@ def eval(model, val_loader, device, loss_fn, epoch, writer, global_step):
     writer.add_scalars('metrics/loss', {'eval': total_loss}, global_step)
     writer.flush()
     return total_loss, accuracy
-
-
-def _get_optimizer(model, args):
-    # TODO: lr decay
-    def _get_lr():
-        return args.lr
-
-    if args.extractor_lr != .0:
-        params = [
-            {
-                "params": list(model.parameters())[:-2],
-                "lr": args.extractor_lr
-            },
-            {
-                "params": list(model.parameters())[-2:]
-            }
-        ]
-    else:
-        params = model.parameters()
-    if args.optimizer_type == 'SGD':
-        return torch.optim.SGD(
-            params, lr=_get_lr(), weight_decay=args.weight_decay,
-        )
-    elif args.optimizer_type == 'Adam':
-        return torch.optim.Adam(
-            params, lr=_get_lr(), weight_decay=args.weight_decay,
-        )
-    elif args.optimizer_type == 'RMSprop':
-        return torch.optim.RMSprop(
-            params, lr=_get_lr(), weight_decay=args.weight_decay,
-        )
-    raise ValueError('unknown optimizer type %s' % args.optimizer_type)
 
 
 def _get_model_dir_name(args, category_name):
@@ -192,17 +190,22 @@ def train(model, train_loader, val_loader, model_dir, args):
 
     # summary writer
     writer = SummaryWriter(model_dir)
-    writer.add_graph(model, (torch.rand(16, 3, 224, 224),
-                             torch.rand(16, 3, 224, 224)))
-    writer.flush()
+    # writer.add_graph(model, (torch.rand(16, 3, 224, 224),
+    #                          torch.rand(16, 3, 224, 224)))
+    # writer.flush()
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     model.to(device)
     loss_fn = loss_builder.build_loss(args.loss_type)
-    optimizer = _get_optimizer(model, args)
-    # for p in model.parameters():
-    #     print(p.size())
+    optimizer, lr_scheduler = get_optimizer_and_lr_schedule(
+        model, args.optimizer_type,
+        args.lr,  args.extractor_lr,
+        args.lr_decay,  args.lr_gamma,  args.lr_milestones,
+        args.early_stopping_epochs,
+        args.weight_decay,
+    )
 
+    print('start training...')
     min_loss = 1e10
     max_accuracy = .0
     early_stopping_cnt = 0
@@ -217,8 +220,9 @@ def train(model, train_loader, val_loader, model_dir, args):
         # eval
         global_step = (i+1) * \
             math.ceil(len(train_loader.dataset)/args.batch_size)
-        cur_loss, cur_accuracy = eval(
-            model, val_loader, device, loss_fn, i + 1, writer, global_step
+        cur_loss, cur_accuracy = eval_once(
+            model, val_loader, device, loss_fn, i + 1,
+            writer, global_step, args.val_batch_size
         )
 
         # save model
@@ -234,6 +238,12 @@ def train(model, train_loader, val_loader, model_dir, args):
                 eval_dir,
                 args.min_loss_ckpt_name.format(min_loss)
             ))
+        else:
+            if args.early_stopping_mode == 'min_loss':
+                early_stopping_cnt += 1
+                if early_stopping_cnt >= args.early_stopping_epochs:
+                    print('early stopping')
+                    break
 
         if max_accuracy < cur_accuracy:
             file_names = os.listdir(eval_dir)
@@ -249,16 +259,25 @@ def train(model, train_loader, val_loader, model_dir, args):
             ))
             early_stopping_cnt = 0
         else:
-            early_stopping_cnt += 1
-            if early_stopping_cnt >= args.early_stopping_epochs:
-                print('early stopping')
-                break
+            if args.early_stopping_mode == 'max_accuracy':
+                early_stopping_cnt += 1
+                if early_stopping_cnt >= args.early_stopping_epochs:
+                    print('early stopping')
+                    break
 
         # save one step model
         torch.save(
             model.state_dict(),
             os.path.join(model_dir, args.step_ckpt_name)
         )
+
+        # lr schedule
+        if lr_scheduler is not None:
+            if args.lr_decay == 'minloss':
+                lr_scheduler.step(min_loss)
+            else:
+                lr_scheduler.step()
+
     print('dataset {}/{} finally get loss {:.4f} and accuracy {:.4f}'.format(
         train_loader.dataset.category_name, args.dataset_type,
         min_loss, max_accuracy
@@ -270,6 +289,8 @@ def main(args):
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
     os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu_devices
     train_loader, val_loader = _get_datasets(args)
+    print('dataset init successfully...')
+
     model = models_builder.build_model(
         args.model_type,
         extractor_type=args.extractor_type,
@@ -278,6 +299,8 @@ def main(args):
         args.logs_root_dir,
         _get_model_dir_name(args, train_loader.dataset.category_name)
     )
+    print('model init successfully...')
+
     train(model, train_loader, val_loader, model_dir, args)
 
 

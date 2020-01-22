@@ -104,7 +104,7 @@ class BaseSiameseDataset(torch.utils.data.Dataset):
         img2 = Image.open(img_p2)
         img1 = self._transforms(img1)
         img2 = self._transforms(img2)
-        return (img1, img2), label
+        return (img1, img2), torch.tensor(label)
 
     def __len__(self):
         return len(self._labels)
