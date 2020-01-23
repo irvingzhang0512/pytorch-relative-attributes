@@ -19,7 +19,7 @@
   + [x] Pubfig
   + [x] Place Pulse
   + [x] OSR
-  + [ ] Prefetch Dataset
+  + [x] Prefetch Dataset(but not working...)
   + [ ] Opencv data argument
   + [ ] Nvidia DALI
   + [ ] Dowloading Scripts
@@ -32,6 +32,7 @@
   + [x] Early Stopping
   + [x] LR decay
   + [ ] Logging with `logging`
+  + [ ] Continue Training
 + Scripts
   + [x] Training
   + [ ] generate scoring result files.

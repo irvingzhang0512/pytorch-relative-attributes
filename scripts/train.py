@@ -64,8 +64,6 @@ def _get_datasets(args):
         num_workers=args.num_workers,
     )
 
-    train_loader = DataPrefetcher(train_loader)
-    val_loader = DataPrefetcher(val_loader)
     return train_loader, val_loader
 
 
@@ -79,9 +77,10 @@ def train_one_epoch(model,
     loss_tool = MeanTool()
     base_global_step = (epoch - 1) * max_iters
 
+    train_loader = DataPrefetcher(train_loader)
     pbar = tqdm(
         range(max_iters),
-        ncols=50,
+        ncols=15,
     )
     for idx in pbar:
         # get data
@@ -107,10 +106,10 @@ def train_one_epoch(model,
 
         # logging & summary
         if idx % args.log_interval_steps == 0:
-            print('Train Epoch: {} {}/{} {:.4f} {:.4f}'.format(
-                epoch, idx, max_iters,
-                loss, accuracy_tool.accuracy()
-            ))
+            # print('Train Epoch: {} {}/{} {:.4f} {:.4f}'.format(
+            #     epoch, idx, max_iters,
+            #     loss, accuracy_tool.accuracy()
+            # ))
             pbar.set_postfix({
                 "loss": loss_tool.mean(),
                 "accuracy": accuracy_tool.accuracy(),
@@ -140,7 +139,11 @@ def eval_once(model, val_loader, device, loss_fn, epoch,
     accuracy_tool = ScoresAccuracyTool()
     batch_idx = 0
     max_iters = math.ceil(len(val_loader.dataset)/batch_size)
-    pbar = tqdm(range(max_iters))
+    pbar = tqdm(
+        range(max_iters),
+        ncols=15,
+    )
+    val_loader = DataPrefetcher(val_loader)
     with torch.no_grad():
         for _ in pbar:
             d = next(val_loader)
