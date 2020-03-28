@@ -7,19 +7,19 @@ from bable.utils.transforms_utils import get_default_transforms_config
 
 
 if 'Windows' in platform.platform():
-    BASE_DATASET = "E:\\data\\PlacePulse"
+    BASE_DATASET = "F:\\data\\BaiduStreetView"
 else:
-    BASE_DATASET = "/hdd02/zhangyiyang/data/PlacePulse"
+    BASE_DATASET = "/hdd02/zhangyiyang/data/BaiduStreetView"
 
 
 CATEGORIES = (
-    'beautiful', 'boring', 'depressing', 'lively', 'safety', 'wealthy'
+    'beautiful', 'safety'
 )
 
-SPLITS = ('train', 'val', 'test')
+SPLITS = ('train', 'val')
 
 
-class PlacePulseDataset(BaseSiameseDataset):
+class BaiduStreetViewDataset(BaseSiameseDataset):
     def __init__(self,
                  split,
                  category_id,
@@ -37,7 +37,7 @@ class PlacePulseDataset(BaseSiameseDataset):
         self._dataset_dir = dataset_dir
         self._image_dir_name = image_dir_name
         self._annoatation_file_name = annoatation_file_name
-        super(PlacePulseDataset, self).__init__(
+        super(BaiduStreetViewDataset, self).__init__(
             split, category_id, trans_config)
 
     def _get_splits(self):
@@ -56,9 +56,8 @@ class PlacePulseDataset(BaseSiameseDataset):
             return 0
 
         df = pd.read_csv(os.path.join(
-            self._dataset_dir, '{}_{}_equal.csv'.format(
-                self.category_name, split
-            )
+            self._dataset_dir,
+            '{}_{}_equal.csv'.format(self.category_name, split)
         ))
         image_dir = os.path.join(self._dataset_dir, self._image_dir_name)
         df = df[df.category == self.category_name]
@@ -78,19 +77,19 @@ class PlacePulseDataset(BaseSiameseDataset):
         return pair_list, labels
 
 
-class PlacePulsePredictDataset(BasePredictDataset):
+class BaiduStreetViewPredictDataset(BasePredictDataset):
     def __init__(self,
                  min_height=224,
                  min_width=224,
                  is_bgr=False,
                  dataset_dir=BASE_DATASET,
                  image_dir_name='images',
-                 broken_file_name='broken_image_list.txt',
+                 broken_file_name=None,
                  ):
         self._dataset_dir = dataset_dir
         self._image_dir_name = image_dir_name
         self._broken_file_name = broken_file_name
-        super(PlacePulsePredictDataset, self).__init__(
+        super(BaiduStreetViewPredictDataset, self).__init__(
             min_height, min_width, is_bgr
         )
 
@@ -99,8 +98,9 @@ class PlacePulsePredictDataset(BasePredictDataset):
         file_names = os.listdir(image_dir)
         broken_files = []
         if self._broken_file_name is not None:
-            with open(os.path.join(self._dataset_dir,
-                                   self._broken_file_name), 'r') as f:
+            with open(os.path.join(
+                    self._dataset_dir,
+                    self._broken_file_name), 'r') as f:
                 broken_files = f.readlines()
             broken_files = [name.replace('\n', '') for name in broken_files]
         image_list = [os.path.join(image_dir, fname)

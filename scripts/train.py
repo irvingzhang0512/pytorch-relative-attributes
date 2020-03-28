@@ -1,19 +1,22 @@
-import torch
+import math
 import os
 import platform
 import shutil
-import math
 if 'Windows' in platform.platform():
     import sys
     sys.path.append("E:\\vscprojects\\pytorch-relative-attributes")
-from tqdm import tqdm
+
+import torch
 from tensorboardX import SummaryWriter
-from bable.utils.training_utils import get_optimizer_and_lr_schedule
-from bable.utils.dataloader_utils import PrefetchDataLoader, DataPrefetcher
-from bable.utils.metrics_utils import ScoresAccuracyTool, MeanTool
+from tqdm import tqdm
+
+from bable.builders import datasets_builder, loss_builder, models_builder
+from bable.utils.dataloader_utils import DataPrefetcher, PrefetchDataLoader
+from bable.utils.metrics_utils import MeanTool, ScoresAccuracyTool
 from bable.utils.opts_utils import parse_args
-from bable.builders import datasets_builder, models_builder, loss_builder
+from bable.utils.training_utils import get_optimizer_and_lr_schedule
 from bable.utils.transforms_utils import get_default_transforms_config
+
 
 
 def _get_datasets(args):
@@ -44,13 +47,17 @@ def _get_datasets(args):
         batch_size=args.batch_size,
         shuffle=True,
         num_workers=args.num_workers,
+        pin_memory=True,
     )
 
     val_dataset_config = get_default_transforms_config(False)
     val_dataset_config['resize_size'] = (
         args.val_reisze_height, args.val_reisze_width
     )
-    val_split = 'val' if 'place_pulse' in args.dataset_type else 'test'
+    if 'place_pulse' in args.dataset_type or 'baidu' in args.dataset_type:
+        val_split = 'val'
+    else:
+        val_split = 'test'
     val_dataset = datasets_builder.build_dataset(
         dataset_type=args.dataset_type,
         split=val_split,

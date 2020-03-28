@@ -5,6 +5,8 @@ from bable.datasets.pubfig_dataset import PubfigDataset, PubfigPredictDataset
 from bable.datasets.osr_dataset import OSRDataset, OSRPredictDataset
 from bable.datasets.place_pulse_dataset import PlacePulseDataset
 from bable.datasets.place_pulse_dataset import PlacePulsePredictDataset
+from bable.datasets.baidu_street_view import BaiduStreetViewDataset
+from bable.datasets.baidu_street_view import BaiduStreetViewPredictDataset
 
 
 def build_dataset(dataset_type, **kwargs):
@@ -41,4 +43,10 @@ def build_dataset(dataset_type, **kwargs):
     elif dataset_type == 'place_pulse_predict':
         # params: min_height, min_width, is_bgr
         return PlacePulsePredictDataset(**kwargs)
+    elif dataset_type == 'baidu_street_view':
+        # params: split, category_id, trans_config, include_equal
+        return BaiduStreetViewDataset(**kwargs)
+    elif dataset_type == 'baidu_street_view_predict':
+        # params: min_height, min_width, is_bgr
+        return BaiduStreetViewPredictDataset(**kwargs)
     raise ValueError('unknown dataset type %s' % dataset_type)
